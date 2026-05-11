@@ -32,7 +32,7 @@ export default function Quiz() {
       const subjects = router.query.subjects
         ? router.query.subjects.split(',')
         : ['OOPS', 'DBMS', 'OS', 'CN', 'Java'];
-        
+
       const allQuestions = [];
 
       for (const subject of subjects) {
@@ -45,7 +45,7 @@ export default function Quiz() {
           : topics[currentSetIndex % topics.length];
 
         const res = await axios.post(
-          'http://localhost:5000/api/quiz/generate',
+          `${process.env.NEXT_PUBLIC_API_URL}/api/quiz/generate`,
           { subject, topic, difficulty: 'Medium' },
           { headers: { Authorization: `Bearer ${token}` } }
         );

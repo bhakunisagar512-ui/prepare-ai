@@ -16,8 +16,8 @@ export default function Login() {
     setLoading(true);
     try {
       const url = isRegister
-        ? 'http://localhost:5000/api/auth/register'
-        : 'http://localhost:5000/api/auth/login';
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`;
 
       const payload = isRegister
         ? { name: form.name, email: form.email, password: form.password }
