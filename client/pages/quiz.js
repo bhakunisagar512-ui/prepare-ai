@@ -38,7 +38,7 @@ export default function Quiz() {
       for (const subject of subjects) {
         const topics = getTopicsForSubject(subject);
 
-        // filter to selected topics if any match this subject
+        // if a selected topic belongs to this subject use it, else pick normally
         const subjectSelectedTopics = selectedTopics.filter(t => topics.includes(t));
         const topic = subjectSelectedTopics.length > 0
           ? subjectSelectedTopics[currentSetIndex % subjectSelectedTopics.length]
@@ -56,6 +56,27 @@ export default function Quiz() {
           topic,
         }));
         allQuestions.push(...picked);
+      }
+
+      // if questions are less than 10 (e.g. only 1 subject selected), pad with more
+      if (allQuestions.length < 10) {
+        const remaining = 10 - allQuestions.length;
+        const extraSubject = subjects[0];
+        const extraTopics = getTopicsForSubject(extraSubject);
+        const extraTopic = extraTopics[(currentSetIndex + 1) % extraTopics.length];
+
+        const res = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/quiz/generate`,
+          { subject: extraSubject, topic: extraTopic, difficulty: 'Medium' },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const extra = res.data.questions.slice(0, remaining).map(q => ({
+          ...q,
+          subject: extraSubject,
+          topic: extraTopic,
+        }));
+        allQuestions.push(...extra);
       }
 
       setQuestions(allQuestions);
