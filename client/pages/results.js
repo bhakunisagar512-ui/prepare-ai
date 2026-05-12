@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
 import { useSession } from '../context/SessionContext';
+import AIFeedback from '../components/AIFeedback';
+import feedtemp from '../utils/feedtemp';
+
+const { user, token } = useAuth();
 
 export default function Results() {
   const { user } = useAuth();
@@ -41,6 +45,16 @@ export default function Results() {
       prev.includes(topic) ? prev.filter(t => t !== topic) : [...prev, topic]
     );
   };
+
+  const feedbackData = {
+  score,
+  totalQuestions,
+  percentage,
+  strongTopics: strongTopics.map(t => t.topic),
+  weakTopics: weakTopics.map(t => t.topic),
+  };
+  const templateIndex = (attempts.length - 1) % 10;
+  const localFeedback = feedtemp[templateIndex](feedbackData);
 
   const handleNextQuiz = () => {
     if (selectedTopics.length > 0) {
@@ -88,6 +102,9 @@ export default function Results() {
           <p className="text-2xl mb-1">{getScoreMessage()}</p>
           <p className="text-gray-500 text-sm">{score} out of {totalQuestions} correct</p>
         </div>
+
+        {/* AI Feedback */}
+        <AIFeedback results={results} localFeedback={localFeedback} token={token} />
 
         {/* Question Breakdown */}
         <div className="bg-gray-900 rounded-2xl p-6 mb-8">

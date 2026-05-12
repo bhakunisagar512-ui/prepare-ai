@@ -47,3 +47,34 @@ exports.generateQuizHandler = async (req, res) => {
     res.status(500).json({ message: 'Quiz generation failed', error: err.message });
   }
 };
+
+exports.generateFeedbackHandler = async (req, res) => {
+  const { results } = req.body;
+
+  const score = results.filter(r => r.isCorrect).length;
+  const percentage = Math.round((score / results.length) * 100);
+  const wrongTopics = [...new Set(results.filter(r => !r.isCorrect).map(r => r.topic))];
+  const rightTopics = [...new Set(results.filter(r => r.isCorrect).map(r => r.topic))];
+
+  const prompt = `
+    A student just completed a technical interview preparation quiz.
+    Score: ${score}/${results.length} (${percentage}%)
+    Strong topics: ${rightTopics.join(', ') || 'none'}
+    Weak topics: ${wrongTopics.join(', ') || 'none'}
+    
+    Write a short, encouraging and specific feedback paragraph (4-5 sentences) for this student.
+    Mention their strong topics, weak topics, and give one concrete study tip.
+    Be direct and motivating. No bullet points, just a paragraph.
+  `;
+
+  try {
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const result = await model.generateContent(prompt);
+    const feedback = result.response.text();
+    res.json({ feedback });
+  } catch (err) {
+    res.status(500).json({ message: 'Feedback generation failed' });
+  }
+};
