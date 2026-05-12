@@ -1,12 +1,19 @@
 const { generateQuiz } = require('../utils/gemini');
 
-// fallback data map
-const fallbackData = {
-  DBMS: require('../data/dbms'),
-  OOPS: require('../data/oops'),
-  OS: require('../data/os'),
-  CN: require('../data/cn'),
-  Java: require('../data/java'),
+const flattenSubject = (data) => {
+  const flat = [];
+  Object.entries(data).forEach(([topic, questions]) => {
+    questions.forEach(q => flat.push({ ...q, topic }));
+  });
+  return flat;
+};
+
+const allQuestions = {
+  DBMS: flattenSubject(require('../data/dbms')),
+  OOPS: flattenSubject(require('../data/oops')),
+  OS:   flattenSubject(require('../data/os')),
+  CN:   flattenSubject(require('../data/cn')),
+  Java: flattenSubject(require('../data/java')),
 };
 
 const getFallbackQuestions = (subject, topic) => {
