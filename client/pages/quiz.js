@@ -18,8 +18,8 @@ export default function Quiz() {
 
   useEffect(() => {
     if (!user) { router.push('/login'); return; }
-    fetchQuiz();
-  }, [user]);
+    if (router.isReady) fetchQuiz();
+  }, [user, router.isReady]);
 
   const fetchQuiz = async () => {
     setLoading(true);
@@ -29,52 +29,80 @@ export default function Quiz() {
         ? router.query.topics.split(',')
         : [];
 
-      const subjects = router.query.subjects
+      const selectedSubjects = router.query.subjects
         ? router.query.subjects.split(',')
         : ['OOPS', 'DBMS', 'OS', 'CN', 'Java'];
 
-      const allQuestions = [];
+      const customSubjects = router.query.custom
+        ? router.query.custom.split(',').filter(Boolean)
+        : [];
 
-      for (const subject of subjects) {
-        const topics = getTopicsForSubject(subject);
-
-        // if a selected topic belongs to this subject use it, else pick normally
-        const subjectSelectedTopics = selectedTopics.filter(t => topics.includes(t));
-        const topic = subjectSelectedTopics.length > 0
-          ? subjectSelectedTopics[currentSetIndex % subjectSelectedTopics.length]
-          : topics[currentSetIndex % topics.length];
-
-        const res = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/quiz/generate`,
-          { subject, topic, difficulty: 'Medium' },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        const picked = res.data.questions.slice(0, 2).map(q => ({
-          ...q,
-          subject,
-          topic,
-        }));
-        allQuestions.push(...picked);
+      const topicFilters = {};
+      if (selectedTopics.length > 0) {
+        selectedSubjects.forEach(subject => {
+          const subjectTopics = getTopicsForSubject(subject);
+          const matched = selectedTopics.filter(t => subjectTopics.includes(t));
+          if (matched.length > 0) topicFilters[subject] = matched;
+        });
       }
 
-      // if questions are less than 10 (e.g. only 1 subject selected), pad with more
-      if (allQuestions.length < 10) {
-        const remaining = 10 - allQuestions.length;
-        const extraSubject = subjects[0];
-        const extraTopics = getTopicsForSubject(extraSubject);
-        const extraTopic = extraTopics[(currentSetIndex + 1) % extraTopics.length];
+      // standard subjects from backend
+      const standardSubjects = selectedSubjects.filter(s => !customSubjects.includes(s));
+      let allQuestions = [];
 
+      if (standardSubjects.length > 0) {
         const res = await axios.post(
           `${process.env.NEXT_PUBLIC_API_URL}/api/quiz/generate`,
-          { subject: extraSubject, topic: extraTopic, difficulty: 'Medium' },
+          {
+            setIndex: currentSetIndex,
+            topicFilters,
+            subjects: standardSubjects,
+          },
           { headers: { Authorization: `Bearer ${token}` } }
         );
+        allQuestions = res.data.questions.map(q => ({
+          ...q,
+          subject: q.subject || 'General',
+          topic: q.topic || 'General',
+        }));
+      }
 
+      // custom subjects via Gemini
+      for (const customSubject of customSubjects) {
+        if (!customSubject) continue;
+        try {
+          const res = await axios.post(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/quiz/generate-custom`,
+            { subject: customSubject },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          const picked = res.data.questions.slice(0, 2).map(q => ({
+            ...q,
+            subject: customSubject,
+            topic: customSubject,
+          }));
+          allQuestions.push(...picked);
+        } catch (err) {
+          console.log('Custom subject generation failed:', customSubject);
+        }
+      }
+
+      // if less than 10 questions pad from first standard subject
+      if (allQuestions.length < 10 && standardSubjects.length > 0) {
+        const remaining = 10 - allQuestions.length;
+        const res = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/quiz/generate`,
+          {
+            setIndex: currentSetIndex + 1,
+            topicFilters: {},
+            subjects: [standardSubjects[0]],
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
         const extra = res.data.questions.slice(0, remaining).map(q => ({
           ...q,
-          subject: extraSubject,
-          topic: extraTopic,
+          subject: q.subject || standardSubjects[0],
+          topic: q.topic || 'General',
         }));
         allQuestions.push(...extra);
       }
@@ -95,11 +123,11 @@ export default function Quiz() {
       CN: ['OSI Model', 'TCP/IP', 'Routing', 'Network Security', 'IP Addressing'],
       Java: ['Collections', 'Exception Handling', 'Multithreading', 'Java 8 Features', 'String Handling'],
     };
-    return map[subject];
+    return map[subject] || [];
   };
 
   const handleSelect = (option) => {
-    if (selected !== null) return; // already answered
+    if (selected !== null) return;
     setSelected(option);
   };
 
@@ -123,7 +151,6 @@ export default function Quiz() {
       setCurrent(current + 1);
       setSelected(null);
     } else {
-      // quiz done
       const score = newAnswers.filter(a => a.isCorrect).length;
       const attempt = {
         results: newAnswers,
@@ -156,7 +183,7 @@ export default function Quiz() {
   );
 
   const q = questions[current];
-  const progress = ((current) / questions.length) * 100;
+  const progress = (current / questions.length) * 100;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
@@ -169,10 +196,7 @@ export default function Quiz() {
 
       {/* Progress Bar */}
       <div className="w-full bg-gray-800 h-1">
-        <div
-          className="bg-blue-500 h-1 transition-all duration-300"
-          style={{ width: `${progress}%` }}
-        />
+        <div className="bg-blue-500 h-1 transition-all duration-300" style={{ width: `${progress}%` }} />
       </div>
 
       <div className="flex-1 flex items-center justify-center px-4 py-10">

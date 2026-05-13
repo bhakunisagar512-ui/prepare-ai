@@ -17,6 +17,10 @@ export default function Select() {
   const router = useRouter();
   const [selected, setSelected] = useState([]);
   const [error, setError] = useState('');
+  const [customSubjects, setCustomSubjects] = useState([]);
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customInput, setCustomInput] = useState('');
+  const [customError, setCustomError] = useState('');
 
   useEffect(() => {
     if (!user) router.push('/login');
@@ -29,6 +33,24 @@ export default function Select() {
     setError('');
   };
 
+  const handleAddCustom = () => {
+    const trimmed = customInput.trim();
+    if (!trimmed) {
+      setCustomError('Please enter a subject name.');
+      return;
+    }
+    if (customSubjects.find(s => s.id.toLowerCase() === trimmed.toLowerCase())) {
+      setCustomError('This subject is already added.');
+      return;
+    }
+    const newSubject = { id: trimmed, label: trimmed, icon: '✨', custom: true };
+    setCustomSubjects(prev => [...prev, newSubject]);
+    setSelected(prev => [...prev, trimmed]);
+    setCustomInput('');
+    setCustomError('');
+    setShowCustomInput(false);
+  };
+
   const handleStart = () => {
     if (selected.length === 0) {
       setError('Please select at least one subject to continue.');
@@ -36,9 +58,14 @@ export default function Select() {
     }
     router.push({
       pathname: '/quiz',
-      query: { subjects: selected.join(',') },
+      query: {
+        subjects: selected.join(','),
+        custom: customSubjects.filter(s => selected.includes(s.id)).map(s => s.id).join(','),
+      },
     });
   };
+
+  const allSubjects = [...SUBJECTS, ...customSubjects.map(s => ({ ...s, available: true }))];
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -46,33 +73,25 @@ export default function Select() {
       {/* Header */}
       <div className="bg-gray-900 px-6 py-4 flex justify-between items-center border-b border-gray-800">
         <h1 className="text-xl font-bold">Prepare<span className="text-blue-500">.ai</span></h1>
-        <button
-          onClick={() => router.push('/dashboard')}
-          className="text-sm text-gray-400 hover:text-white transition"
-        >
+        <button onClick={() => router.push('/dashboard')} className="text-sm text-gray-400 hover:text-white transition">
           ← Dashboard
         </button>
       </div>
 
       <div className="max-w-2xl mx-auto px-6 py-10">
 
-        {/* Heading */}
         <div className="text-center mb-10">
           <h2 className="text-3xl font-bold mb-2">Choose Your Subjects</h2>
-          <p className="text-gray-400">Select the subjects you want to be quizzed on. Your quiz will only include questions from selected subjects.</p>
+          <p className="text-gray-400">Select subjects you want to be quizzed on.</p>
         </div>
 
-        {/* Subject Grid */}
         <div className="grid grid-cols-1 gap-3 mb-4">
-          {SUBJECTS.map(({ id, label, icon, available }) => {
+          {allSubjects.map(({ id, label, icon, available, custom }) => {
             const isSelected = selected.includes(id);
 
             if (!available) {
               return (
-                <div
-                  key={id}
-                  className="flex items-center justify-between bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4 opacity-50 cursor-not-allowed"
-                >
+                <div key={id} className="flex items-center justify-between bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4 opacity-50 cursor-not-allowed">
                   <div className="flex items-center gap-4">
                     <span className="text-2xl">{icon}</span>
                     <div>
@@ -80,9 +99,7 @@ export default function Select() {
                       <p className="text-xs text-gray-600">{id}</p>
                     </div>
                   </div>
-                  <span className="text-xs bg-gray-800 text-gray-500 px-3 py-1 rounded-full border border-gray-700">
-                    Coming Soon
-                  </span>
+                  <span className="text-xs bg-gray-800 text-gray-500 px-3 py-1 rounded-full border border-gray-700">Coming Soon</span>
                 </div>
               );
             }
@@ -92,16 +109,14 @@ export default function Select() {
                 key={id}
                 onClick={() => toggleSubject(id)}
                 className={`flex items-center justify-between rounded-2xl px-5 py-4 border transition-all text-left ${
-                  isSelected
-                    ? 'bg-blue-950 border-blue-500'
-                    : 'bg-gray-900 border-gray-800 hover:border-gray-600'
+                  isSelected ? 'bg-blue-950 border-blue-500' : 'bg-gray-900 border-gray-800 hover:border-gray-600'
                 }`}
               >
                 <div className="flex items-center gap-4">
                   <span className="text-2xl">{icon}</span>
                   <div>
                     <p className="font-medium">{label}</p>
-                    <p className="text-xs text-gray-500">{id}</p>
+                    <p className="text-xs text-gray-500">{custom ? 'Custom Subject' : id}</p>
                   </div>
                 </div>
                 <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
@@ -113,41 +128,63 @@ export default function Select() {
             );
           })}
 
-          {/* Add Subject Card — disabled */}
-          <div className="flex items-center justify-between bg-gray-900 border border-dashed border-gray-700 rounded-2xl px-5 py-4 opacity-50 cursor-not-allowed">
-            <div className="flex items-center gap-4">
-              <span className="text-2xl">➕</span>
-              <div>
-                <p className="font-medium text-gray-400">Add Your Own Subject</p>
-                <p className="text-xs text-gray-600">Request a custom subject to be added</p>
+          {/* Add Your Own Subject */}
+          {!showCustomInput ? (
+            <button
+              onClick={() => setShowCustomInput(true)}
+              className="flex items-center justify-between bg-gray-900 border border-dashed border-blue-700 rounded-2xl px-5 py-4 hover:border-blue-500 transition-all text-left"
+            >
+              <div className="flex items-center gap-4">
+                <span className="text-2xl">➕</span>
+                <div>
+                  <p className="font-medium text-blue-400">Add Your Own Subject</p>
+                  <p className="text-xs text-gray-500">Powered by Gemini AI — any topic works</p>
+                </div>
+              </div>
+              <span className="text-xs bg-blue-950 text-blue-400 px-3 py-1 rounded-full border border-blue-700">New</span>
+            </button>
+          ) : (
+            <div className="bg-gray-900 border border-blue-600 rounded-2xl px-5 py-4">
+              <p className="text-blue-400 font-medium mb-3">✨ Add a Custom Subject</p>
+              <p className="text-gray-500 text-sm mb-3">Type any subject — Gemini AI will generate questions for it.</p>
+              <input
+                type="text"
+                placeholder="e.g. Machine Learning, React.js, Economics..."
+                value={customInput}
+                onChange={e => { setCustomInput(e.target.value); setCustomError(''); }}
+                onKeyDown={e => e.key === 'Enter' && handleAddCustom()}
+                className="w-full bg-gray-800 text-white px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500 mb-3"
+                autoFocus
+              />
+              {customError && <p className="text-red-400 text-sm mb-3">{customError}</p>}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleAddCustom}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl font-semibold transition text-sm"
+                >
+                  Add Subject
+                </button>
+                <button
+                  onClick={() => { setShowCustomInput(false); setCustomInput(''); setCustomError(''); }}
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-xl font-semibold transition text-sm"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
-            <span className="text-xs bg-gray-800 text-gray-500 px-3 py-1 rounded-full border border-gray-700">
-              Coming Soon
-            </span>
-          </div>
-
+          )}
         </div>
 
-        {/* Selected count */}
         <p className="text-center text-gray-500 text-sm mb-2">
-          {selected.length === 0
-            ? 'No subjects selected'
-            : `${selected.length} subject${selected.length > 1 ? 's' : ''} selected`}
+          {selected.length === 0 ? 'No subjects selected' : `${selected.length} subject${selected.length > 1 ? 's' : ''} selected`}
         </p>
 
-        {/* Error */}
-        {error && (
-          <p className="text-center text-red-400 text-sm mb-4">{error}</p>
-        )}
+        {error && <p className="text-center text-red-400 text-sm mb-4">{error}</p>}
 
-        {/* Start Button */}
         <button
           onClick={handleStart}
           className={`w-full py-4 rounded-2xl font-semibold text-lg transition-all mt-4 ${
-            selected.length > 0
-              ? 'bg-blue-600 hover:bg-blue-700 text-white'
-              : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+            selected.length > 0 ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-800 text-gray-500 cursor-not-allowed'
           }`}
         >
           {selected.length > 0 ? `Start Quiz with ${selected.length} Subject${selected.length > 1 ? 's' : ''} →` : 'Select a subject to continue'}

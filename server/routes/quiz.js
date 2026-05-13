@@ -5,5 +5,6 @@ const auth = require('../middleware/auth');
 
 router.post('/generate', auth, generateQuizHandler);
 router.post('/feedback', auth, generateFeedbackHandler);
+router.post('/generate-custom', auth, require('../controllers/quizController').generateCustomHandler);
 
 module.exports = router;

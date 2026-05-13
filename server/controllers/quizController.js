@@ -19,29 +19,36 @@ const QUESTIONS_PER_SUBJECT = 2;
 
 exports.generateQuizHandler = async (req, res) => {
   try {
-    const { subject, topic, difficulty } = req.body;
+    const { setIndex = 0, topicFilters = {}, subjects = ['OOPS', 'DBMS', 'OS', 'CN', 'Java'] } = req.body;
 
-    if (!subject || !topic || !difficulty) {
-      return res.status(400).json({ message: 'Subject, topic and difficulty are required' });
-    }
+    let questions = [];
 
-    const subjectPool = allQuestions[subject];
-    if (!subjectPool) {
-      return res.status(400).json({ message: 'Invalid subject' });
-    }
+    subjects.forEach(subject => {
+      if (!allQuestions[subject]) return;
 
-    let pool = subjectPool.filter(q => q.topic === topic);
-    if (pool.length === 0) pool = subjectPool;
+      let pool = allQuestions[subject];
+      const filter = topicFilters[subject];
 
-    const shuffled = pool.sort(() => Math.random() - 0.5).slice(0, 10);
+      if (filter && filter.length > 0) {
+        const filtered = pool.filter(q => filter.includes(q.topic));
+        if (filtered.length > 0) pool = filtered;
+      }
 
-    res.json({
-      subject,
-      topic,
-      difficulty,
-      usedFallback: true,
-      questions: shuffled,
+      const start = (setIndex * QUESTIONS_PER_SUBJECT) % pool.length;
+      const q1 = pool[start];
+      const q2 = pool[(start + 1) % pool.length];
+
+      questions.push({ ...q1, subject }, { ...q2, subject });
     });
+
+    while (questions.length < 10) {
+      const subject = subjects[0];
+      const pool = allQuestions[subject];
+      const extra = pool[questions.length % pool.length];
+      questions.push({ ...extra, subject });
+    }
+
+    res.json({ setIndex, totalSets: 50, nextSetIndex: setIndex + 1, questions });
 
   } catch (err) {
     res.status(500).json({ message: 'Quiz generation failed', error: err.message });
@@ -76,5 +83,43 @@ exports.generateFeedbackHandler = async (req, res) => {
     res.json({ feedback });
   } catch (err) {
     res.status(500).json({ message: 'Feedback generation failed' });
+  }
+};
+
+exports.generateCustomHandler = async (req, res) => {
+  const { subject } = req.body;
+  if (!subject) return res.status(400).json({ message: 'Subject is required' });
+
+  const prompt = `
+    Generate exactly 10 multiple choice questions about "${subject}".
+    
+    Return ONLY a valid JSON array with no extra text:
+    [
+      {
+        "question": "Question text here?",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "answer": "Correct option text here",
+        "explanation": "Brief explanation here"
+      }
+    ]
+    
+    Rules:
+    - Exactly 10 questions
+    - Exactly 4 options each
+    - answer must exactly match one of the options
+    - No markdown, no backticks, just raw JSON array
+  `;
+
+  try {
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    const clean = text.replace(/```json|```/g, '').trim();
+    const questions = JSON.parse(clean);
+    res.json({ subject, questions });
+  } catch (err) {
+    res.status(500).json({ message: 'Custom subject generation failed', error: err.message });
   }
 };
