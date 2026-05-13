@@ -5,10 +5,8 @@ import { useSession } from '../context/SessionContext';
 import AIFeedback from '../components/AIFeedback';
 import feedtemp from '../utils/feedtemp';
 
-const { user, token } = useAuth();
-
 export default function Results() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { attempts } = useSession();
   const router = useRouter();
 
@@ -25,7 +23,6 @@ export default function Results() {
 
   const { results, score, totalQuestions, percentage } = lastAttempt;
 
-  // get unique weak topics from this attempt
   const topicMap = {};
   results.forEach(r => {
     if (!topicMap[r.topic]) topicMap[r.topic] = { correct: 0, total: 0, subject: r.subject };
@@ -48,11 +45,11 @@ export default function Results() {
   };
 
   const feedbackData = {
-  score,
-  totalQuestions,
-  percentage,
-  strongTopics: strongTopics.map(t => t.topic),
-  weakTopics: weakTopics.map(t => t.topic),
+    score,
+    totalQuestions,
+    percentage,
+    strongTopics: strongTopics.map(t => t.topic),
+    weakTopics: weakTopics.map(t => t.topic),
   };
   const templateIndex = (attempts.length - 1) % 10;
   const localFeedback = feedtemp[templateIndex](feedbackData);
