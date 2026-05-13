@@ -51,9 +51,8 @@ export default function Results() {
     strongTopics: strongTopics.map(t => t.topic),
     weakTopics: weakTopics.map(t => t.topic),
   };
-  const templateIndex = (attempts.length - 1) % 10;
-  const localFeedback = feedtemp[templateIndex](feedbackData);
-
+  const localFeedback = feedtemp({ ...feedbackData, attemptIndex: attempts.length - 1 });
+  
   const handleNextQuiz = () => {
     if (selectedTopics.length > 0) {
       router.push({
