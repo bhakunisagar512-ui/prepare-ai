@@ -32,14 +32,7 @@ export default function AIFeedback({ results, localFeedback, token }) {
   return (
     <div className="bg-gray-900 rounded-2xl p-6 mb-8">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">📝 Your Feedback</h2>
-        <span className={`text-xs px-3 py-1 rounded-full border ${
-          isAI
-            ? 'bg-blue-950 border-blue-500 text-blue-300'
-            : 'bg-gray-800 border-gray-600 text-gray-400'
-        }`}>
-          {isAI ? '✨ AI Generated' : '📋 Template'}
-        </span>
+  <h2 className="text-lg font-semibold">📝 Your Feedback</h2>
       </div>
       {loading ? (
         <div className="flex items-center gap-2 text-gray-400 text-sm">
