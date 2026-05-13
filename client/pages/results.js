@@ -15,6 +15,7 @@ export default function Results() {
   const [selectedTopics, setSelectedTopics] = useState([]);
 
   useEffect(() => {
+    if (user === null) return;
     if (!user) { router.push('/login'); return; }
     if (attempts.length === 0) { router.push('/dashboard'); return; }
   }, [user]);
