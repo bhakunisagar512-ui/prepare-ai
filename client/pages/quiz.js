@@ -31,25 +31,31 @@ export default function Quiz() {
 
       const selectedSubjects = router.query.subjects
         ? router.query.subjects.split(',')
-        : ['OOPS', 'DBMS', 'OS', 'CN', 'Java'];
+        : [];
 
       const customSubjects = router.query.custom
         ? router.query.custom.split(',').filter(Boolean)
         : [];
 
+      // if nothing selected default to all standard subjects
+      const standardSubjects = selectedSubjects.length > 0
+        ? selectedSubjects
+        : customSubjects.length === 0
+          ? ['OOPS', 'DBMS', 'OS', 'CN', 'Java']
+          : [];
+
       const topicFilters = {};
       if (selectedTopics.length > 0) {
-        selectedSubjects.forEach(subject => {
+        standardSubjects.forEach(subject => {
           const subjectTopics = getTopicsForSubject(subject);
           const matched = selectedTopics.filter(t => subjectTopics.includes(t));
           if (matched.length > 0) topicFilters[subject] = matched;
         });
       }
 
-      // standard subjects from backend
-      const standardSubjects = selectedSubjects.filter(s => !customSubjects.includes(s));
       let allQuestions = [];
 
+      // fetch standard subjects from backend
       if (standardSubjects.length > 0) {
         const res = await axios.post(
           `${process.env.NEXT_PUBLIC_API_URL}/api/quiz/generate`,
@@ -67,7 +73,7 @@ export default function Quiz() {
         }));
       }
 
-      // custom subjects via Gemini
+      // fetch custom subjects from Gemini
       for (const customSubject of customSubjects) {
         if (!customSubject) continue;
         try {
@@ -87,24 +93,38 @@ export default function Quiz() {
         }
       }
 
-      // if less than 10 questions pad from first standard subject
-      if (allQuestions.length < 10 && standardSubjects.length > 0) {
+      // pad to 10 questions if needed
+      if (allQuestions.length < 10) {
         const remaining = 10 - allQuestions.length;
-        const res = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/quiz/generate`,
-          {
-            setIndex: currentSetIndex + 1,
-            topicFilters: {},
-            subjects: [standardSubjects[0]],
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const extra = res.data.questions.slice(0, remaining).map(q => ({
-          ...q,
-          subject: q.subject || standardSubjects[0],
-          topic: q.topic || 'General',
-        }));
-        allQuestions.push(...extra);
+        if (customSubjects.length > 0) {
+          try {
+            const res = await axios.post(
+              `${process.env.NEXT_PUBLIC_API_URL}/api/quiz/generate-custom`,
+              { subject: customSubjects[0] },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            const extra = res.data.questions.slice(0, remaining).map(q => ({
+              ...q,
+              subject: customSubjects[0],
+              topic: customSubjects[0],
+            }));
+            allQuestions.push(...extra);
+          } catch (err) {
+            console.log('Padding with custom subject failed');
+          }
+        } else if (standardSubjects.length > 0) {
+          const res = await axios.post(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/quiz/generate`,
+            { setIndex: currentSetIndex + 1, topicFilters: {}, subjects: [standardSubjects[0]] },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          const extra = res.data.questions.slice(0, remaining).map(q => ({
+            ...q,
+            subject: q.subject || standardSubjects[0],
+            topic: q.topic || 'General',
+          }));
+          allQuestions.push(...extra);
+        }
       }
 
       setQuestions(allQuestions);
