@@ -33,7 +33,14 @@ export default function AIFeedback({ results, localFeedback, token }) {
     <div className="bg-gray-900 rounded-2xl p-6 mb-8">
       <div className="flex items-center justify-between mb-3">
   <h2 className="text-lg font-semibold">📝 Your Feedback</h2>
-      </div>
+  {!loading && (
+    <span className={`text-xs px-2 py-0.5 rounded-full ${
+      isAI ? 'text-blue-400' : 'text-gray-600'
+    }`}>
+      {isAI ? '✨' : ''}
+    </span>
+  )}
+</div>
       {loading ? (
         <div className="flex items-center gap-2 text-gray-400 text-sm">
           <span className="animate-pulse">Generating feedback...</span>
