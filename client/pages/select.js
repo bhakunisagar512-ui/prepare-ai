@@ -52,17 +52,19 @@ export default function Select() {
   };
 
   const handleStart = () => {
-    if (selected.length === 0) {
-      setError('Please select at least one subject to continue.');
-      return;
-    }
-    router.push({
-      pathname: '/quiz',
-      query: {
-        subjects: selected.join(','),
-        custom: customSubjects.filter(s => selected.includes(s.id)).map(s => s.id).join(','),
-      },
-    });
+  if (selected.length === 0) {
+    setError('Please select at least one subject to continue.');
+    return;
+  }
+
+  const customSelected = customSubjects.filter(s => selected.includes(s.id)).map(s => s.id);
+  const standardSelected = selected.filter(s => !customSelected.includes(s));
+
+  const query = {};
+  if (standardSelected.length > 0) query.subjects = standardSelected.join(',');
+  if (customSelected.length > 0) query.custom = customSelected.join(',');
+
+  router.push({ pathname: '/quiz', query });
   };
 
   const allSubjects = [...SUBJECTS, ...customSubjects.map(s => ({ ...s, available: true }))];
