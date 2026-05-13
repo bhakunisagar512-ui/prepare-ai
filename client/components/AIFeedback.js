@@ -11,6 +11,8 @@ export default function AIFeedback({ results, localFeedback, token }) {
   }, []);
 
   const generateFeedback = async () => {
+    console.log('token:', token);
+    console.log('localFeedback:', localFeedback);
     try {
       const res = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/api/quiz/feedback`,
